@@ -24,7 +24,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
 | 9 | CRUD `/api/reservations` (JPA + H2) | Implementada | reservations | commits `306bbc2`, `952a780` |
-| 10 | Logica de negocio en `ReservationService` | Implementada | reservations | commit `c76f5d9` |
+| 10 | Logica de negocio en `ReservationService` | Implementada | reservations | commit `690dbb6` |
 | 11 | Proxy CRUD en BFF | Implementada | bff | commits `2cbd307`, `0368ce7` |
 | 12 | Listado, creacion y eliminacion en el frontend | Implementada | frontend | `src/app/reservations.component.ts` |
 | 13 | Despliegue del frontend en GitHub Pages | Implementada | frontend | `.github/workflows/deploy.yml`, https://joaferrada.github.io/frontend-andesstay/ |
@@ -33,21 +33,21 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
-| 14 | `estado` (enum), `creadaEn`, `actualizadaEn`; toda reserva nueva parte en CREADA | Implementada | reservations | commit `82a555b`; `ReservationServiceTest.crearSiempreParteEnCreadaYPublica` |
+| 14 | `estado` (enum), `creadaEn`, `actualizadaEn`; toda reserva nueva parte en CREADA | Implementada | reservations | commit `d78e81c`; `ReservationServiceTest.crearSiempreParteEnCreadaYPublica` |
 | 15 | Maquina de estados (sin check-in sin confirmar) | Implementada | reservations | `ReservationStatus.java`; `ReservationStatusTest` (17 casos) |
-| 16 | `PUT /api/reservations/{id}/status` (200/400/404/409) | Implementada | reservations | commit `c76f5d9`; `ReservationServiceTest.checkinSinConfirmarLanza409YNoPublica` |
-| 17 | Filtro `GET /api/reservations?status=` | Implementada | reservations, bff | commits `c76f5d9`, `4e04eab` |
-| 18 | Proxy `PUT /{id}/status` en BFF (Admin u Operador) | Implementada | bff | commit `4e04eab` |
-| 19 | Botones de cambio de estado y filtro en el frontend | Parcial | frontend | commit `5372560`; compila (`ng build`). Falta redeploy y verificar que el API Gateway enrute `PUT /api/reservations/{id}/status` |
+| 16 | `PUT /api/reservations/{id}/status` (200/400/404/409) | Implementada | reservations | commit `690dbb6`; `ReservationServiceTest.checkinSinConfirmarLanza409YNoPublica` |
+| 17 | Filtro `GET /api/reservations?status=` | Implementada | reservations, bff | commits `690dbb6`, `49e49c6` |
+| 18 | Proxy `PUT /{id}/status` en BFF (Admin u Operador) | Implementada | bff | commit `49e49c6` |
+| 19 | Botones de cambio de estado y filtro en el frontend | Parcial | frontend | commit `2fdacec`; compila (`ng build`). Falta redeploy y verificar que el API Gateway enrute `PUT /api/reservations/{id}/status` |
 
 ## 4. Mensajeria RabbitMQ
 
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
-| 20 | Topologia: 3 exchanges durables, 6 colas, 9 bindings | Implementada | reservations, notify | `RabbitTopologyConfig.java` (commits `2e10b69`, `fba0793`); captura de Management UI > Exchanges/Queues |
+| 20 | Topologia: 3 exchanges durables, 6 colas, 9 bindings | Implementada | reservations, notify | `RabbitTopologyConfig.java` (commits `1449db8`, `fba0793`); captura de Management UI > Exchanges/Queues |
 | 21 | Colas principales con DLX + dead-letter routing key; DLQ con TTL de 7 dias | Implementada | reservations, notify | Management UI > Queues > features `DLX`, `DLK`, `TTL` |
 | 22 | Nombres centralizados en `andesstay.messaging.*` + record `@ConfigurationProperties` | Implementada | reservations, notify | `MessagingProperties.java`, `application.yaml` |
-| 23 | Envelope comun (record) y mensajes persistentes JSON con `messageId=eventId` | Implementada | reservations | `EventEnvelope.java`; `EventEnvelopeSerializationTest` (commit `fc0014f`) |
+| 23 | Envelope comun (record) y mensajes persistentes JSON con `messageId=eventId` | Implementada | reservations | `EventEnvelope.java`; `EventEnvelopeSerializationTest` (commit `9ab5f34`) |
 | 24 | Publicacion por cambio de estado usando `cmd.direct` y `cmd.topic` | Implementada | reservations | `CommandType.planFor`; `RabbitReservationNotificationPublisherTest` |
 | 25 | Publisher confirms (correlated), returns y `mandatory=true` | Implementada | reservations, rabbitadmin | `RabbitMessagingConfig.java`; rabbitadmin `POST /messages` responde `confirmed:true` y 422 si no es enrutable |
 | 26 | Reserva se guarda aunque RabbitMQ este caido | Implementada | reservations | `RabbitReservationNotificationPublisherTest.brokerCaidoNoPropagaExcepcion` |
@@ -60,7 +60,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 33 | Excepcion inesperada tratada como no recuperable | Implementada | notify | `AckDecisionPolicyTest.excepcionInesperadaSeTrataComoNoRecuperable` |
 | 34 | Listener de DLQ con log de `x-death` y autoStartup configurable | Implementada | notify | `DeadLetterListener.java`; log `[DLQ] x-death reason=rejected` |
 | 35 | Simulacion de fallos (TRANSIENT, failTimes, FATAL) | Implementada | notify | `FailureSimulator.java`; README de notify |
-| 36 | Cluster RabbitMQ de 2 nodos (classic_config, misma cookie) | Implementada | infra | `mq/compose.yml` (commit `f5d601c`); `rabbitmqctl cluster_status` muestra 2 running nodes; captura Management UI > Overview > Nodes |
+| 36 | Cluster RabbitMQ de 2 nodos (classic_config, misma cookie) | Implementada | infra | `mq/compose.yml` (commit `19cb601`); `rabbitmqctl cluster_status` muestra 2 running nodes; captura Management UI > Overview > Nodes |
 | 37 | Health check con estado de RabbitMQ | Implementada | notify, rabbitadmin | `GET :8083/actuator/health` -> `rabbit: UP` |
 
 ## 5. Administracion de RabbitMQ
@@ -80,8 +80,8 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
-| 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`d27eb3e`), notify (`47c3252`), rabbitadmin (`bd68361`) |
-| 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` (commit `c126c05`) |
+| 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`6a6f7f5`), notify (`47c3252`), rabbitadmin (`bd68361`) |
+| 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` (commit `6fa872b`) |
 | 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (27), notify (18), rabbitadmin (31), bff (1) | salida de `BUILD SUCCESS` |
 
 ## Resumen
