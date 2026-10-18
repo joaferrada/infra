@@ -38,7 +38,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 16 | `PUT /api/reservations/{id}/status` (200/400/404/409) | Implementada | reservations | commit `690dbb6`; `ReservationServiceTest.checkinSinConfirmarLanza409YNoPublica` |
 | 17 | Filtro `GET /api/reservations?status=` | Implementada | reservations, bff | commits `690dbb6`, `49e49c6` |
 | 18 | Proxy `PUT /{id}/status` en BFF (Admin u Operador) | Implementada | bff | commit `49e49c6` |
-| 19 | Botones de cambio de estado y filtro en el frontend | Parcial | frontend | commit `2fdacec`; compila (`ng build`). Falta redeploy y verificar que el API Gateway enrute `PUT /api/reservations/{id}/status` |
+| 19 | Botones de cambio de estado y filtro en el frontend | No implementada | frontend | Pendiente: se desarrolla aparte. El backend ya expone `PUT /{id}/status` y `?status=` via BFF |
 
 ## 4. Mensajeria RabbitMQ
 
@@ -89,8 +89,8 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | Estado | Cantidad | % |
 |---|---|---|
 | Implementada | 46 | 95,8 % |
-| Parcial | 2 | 4,2 % |
-| No implementada | 0 | 0 % |
+| Parcial | 1 | 2,1 % |
+| No implementada | 1 | 2,1 % |
 | **Total** | **48** | |
 
 ## Etapa siguiente (fuera de alcance de la EP3)
