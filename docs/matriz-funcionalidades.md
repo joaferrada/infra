@@ -12,12 +12,12 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 |---|---|---|---|---|
 | 1 | Login con Microsoft Entra ID (MSAL, popup) | Implementada | frontend | commits `74bf612`, `b285e79`; `src/app/app.component.ts` |
 | 2 | Resource Server JWT (issuer Entra ID) | Implementada | bff, reservations | `bff/security/SecurityConfig.java`; reservations commit `61c6c3d` |
-| 3 | Mapeo del claim `roles` a `ROLE_*` | Implementada | bff, rabbitadmin | `JwtAuthConverter.java` (bff y rabbitadmin `b8d8619`) |
+| 3 | Mapeo del claim `roles` a `ROLE_*` | Implementada | bff, rabbitadmin | `JwtAuthConverter.java` (bff y rabbitadmin `e3e4e20`) |
 | 4 | Autorizacion por rol en BFF (`Admin`, `Operador_Dominio`, `Cliente_Dominio`) | Implementada | bff | `@PreAuthorize` en `ReservationsBffController` |
 | 5 | Reenvio del JWT BFF -> reservations | Implementada | bff | commits `f1b467d`, `5987de7` |
 | 6 | Autorizacion por rol dentro de reservations | Parcial | reservations | `@PreAuthorize` declarado, pero `SecurityConfig` no tiene `@EnableMethodSecurity`: el control efectivo de roles se hace en el BFF |
 | 7 | CORS para localhost y GitHub Pages | Implementada | bff | commit `a7b0ac8` |
-| 8 | Seguridad de la API admin: JWT + rol Admin, apagable con `andesstay.security.enabled` | Implementada | rabbitadmin | `AdminApiSecurityTest` (401 / 403 / 200), commit `dbe0745` |
+| 8 | Seguridad de la API admin: JWT + rol Admin, apagable con `andesstay.security.enabled` | Implementada | rabbitadmin | `AdminApiSecurityTest` (401 / 403 / 200), commit `8101d01` |
 
 ## 2. Reservas
 
@@ -44,7 +44,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
-| 20 | Topologia: 3 exchanges durables, 6 colas, 9 bindings | Implementada | reservations, notify | `RabbitTopologyConfig.java` (commits `2e10b69`, `f7edacd`); captura de Management UI > Exchanges/Queues |
+| 20 | Topologia: 3 exchanges durables, 6 colas, 9 bindings | Implementada | reservations, notify | `RabbitTopologyConfig.java` (commits `2e10b69`, `fba0793`); captura de Management UI > Exchanges/Queues |
 | 21 | Colas principales con DLX + dead-letter routing key; DLQ con TTL de 7 dias | Implementada | reservations, notify | Management UI > Queues > features `DLX`, `DLK`, `TTL` |
 | 22 | Nombres centralizados en `andesstay.messaging.*` + record `@ConfigurationProperties` | Implementada | reservations, notify | `MessagingProperties.java`, `application.yaml` |
 | 23 | Envelope comun (record) y mensajes persistentes JSON con `messageId=eventId` | Implementada | reservations | `EventEnvelope.java`; `EventEnvelopeSerializationTest` (commit `fc0014f`) |
@@ -52,7 +52,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 25 | Publisher confirms (correlated), returns y `mandatory=true` | Implementada | reservations, rabbitadmin | `RabbitMessagingConfig.java`; rabbitadmin `POST /messages` responde `confirmed:true` y 422 si no es enrutable |
 | 26 | Reserva se guarda aunque RabbitMQ este caido | Implementada | reservations | `RabbitReservationNotificationPublisherTest.brokerCaidoNoPropagaExcepcion` |
 | 27 | Dominio desacoplado de RabbitMQ (interfaz `ReservationNotificationPublisher`) | Implementada | reservations | `service/ReservationNotificationPublisher.java` |
-| 28 | `@RabbitListener` por dominio (email/, housekeeping/, voucher/, deadletter/) | Implementada | notify | commit `5b3df91` |
+| 28 | `@RabbitListener` por dominio (email/, housekeeping/, voucher/, deadletter/) | Implementada | notify | commit `b978895` |
 | 29 | ACK manual, prefetch configurable | Implementada | notify | `application.yaml` (`acknowledge-mode: manual`, `NOTIFY_PREFETCH`) |
 | 30 | Idempotencia por `eventId` (duplicado -> ACK + log) | Implementada | notify | `ManualAckMessageProcessorTest.duplicadoHaceAckSinReprocesar`; log `[ACK-DUPLICADO]` |
 | 31 | Error no recuperable -> `basicNack(requeue=false)` -> DLQ | Implementada | notify | `ManualAckMessageProcessorTest.jsonInvalidoHaceNackSinRequeue`; log `[NACK->DLQ]` |
@@ -67,20 +67,20 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
-| 38 | `GET/POST/DELETE /api/admin/queues` (+ purga) | Implementada | rabbitadmin | commit `29ac254`; `AdminApiHttpStatusTest` |
+| 38 | `GET/POST/DELETE /api/admin/queues` (+ purga) | Implementada | rabbitadmin | commit `13f22e6`; `AdminApiHttpStatusTest` |
 | 39 | `POST/DELETE /api/admin/exchanges` | Implementada | rabbitadmin | `ExchangeAdminController.java` |
 | 40 | `POST/DELETE /api/admin/bindings` | Implementada | rabbitadmin | `BindingAdminController.java` |
 | 41 | `POST /api/admin/messages` (envelope o `rawBody` malformado) | Implementada | rabbitadmin | `MessageAdminController.java`; demo de JSON invalido -> `q.cmd.email.dlq` |
 | 42 | Codigos HTTP 201/202/204/400/404/409/422/503 | Implementada | rabbitadmin | `AdminApiHttpStatusTest` (9 casos) |
-| 43 | Logica encapsulada en `RabbitAdminService` (RabbitAdmin) | Implementada | rabbitadmin | commit `bad0627` |
-| 44 | Validacion con DTOs + jakarta.validation (`@AmqpName`, sin `amq.`, enum de tipo, `@Positive`) | Implementada | rabbitadmin | `AdminDtoValidationTest` (18 casos), commit `36ca8a4` |
+| 43 | Logica encapsulada en `RabbitAdminService` (RabbitAdmin) | Implementada | rabbitadmin | commit `9e7f2b4` |
+| 44 | Validacion con DTOs + jakarta.validation (`@AmqpName`, sin `amq.`, enum de tipo, `@Positive`) | Implementada | rabbitadmin | `AdminDtoValidationTest` (18 casos), commit `1a97c74` |
 | 45 | `@RestControllerAdvice` con errores JSON claros | Implementada | rabbitadmin | `ApiExceptionHandler.java` |
 
 ## 6. Documentacion y pruebas
 
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
-| 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`d27eb3e`), notify (`f574ebd`), rabbitadmin (`fa43b16`) |
+| 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`d27eb3e`), notify (`47c3252`), rabbitadmin (`bd68361`) |
 | 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` (commit `c126c05`) |
 | 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (27), notify (18), rabbitadmin (31), bff (1) | salida de `BUILD SUCCESS` |
 
