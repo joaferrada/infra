@@ -1,0 +1,11 @@
+# Secretos locales
+.env
+*.env
+!.env.example
+.erlang.cookie
+
+# Sistema / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

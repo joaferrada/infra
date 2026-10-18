@@ -1,0 +1,63 @@
+# Cluster RabbitMQ de 2 nodos para AndesStay (EP3)
+#
+#   docker compose -f infra/mq/compose.yml up -d
+#
+#   rabbit1: AMQP localhost:5672  | Management http://localhost:15672
+#   rabbit2: AMQP localhost:5673  | Management http://localhost:15673
+#
+# Ambos nodos comparten la misma Erlang cookie y se descubren con classic_config
+# (lista fija de nodos en rabbitmq.conf). Los microservicios se conectan con:
+#   RABBITMQ_ADDRESSES=localhost:5672,localhost:5673
+#
+# Credenciales y cookie se leen de infra/mq/.env (ver .env.example; .env no se versiona).
+
+x-rabbit-common: &rabbit-common
+  image: rabbitmq:4-management
+  restart: unless-stopped
+  environment:
+    RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+    RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    # Misma cookie en ambos nodos: requisito para que formen cluster
+    RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -setcookie ${RABBITMQ_ERLANG_COOKIE:-andesstay-local-dev-cookie}
+    RABBITMQ_CTL_ERL_ARGS: -setcookie ${RABBITMQ_ERLANG_COOKIE:-andesstay-local-dev-cookie}
+  healthcheck:
+    test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+    interval: 10s
+    timeout: 10s
+    retries: 10
+  networks:
+    - andesstay-mq
+
+services:
+  rabbit1:
+    <<: *rabbit-common
+    container_name: andesstay-rabbit1
+    hostname: rabbit1
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - rabbit1-data:/var/lib/rabbitmq
+
+  rabbit2:
+    <<: *rabbit-common
+    container_name: andesstay-rabbit2
+    hostname: rabbit2
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - rabbit2-data:/var/lib/rabbitmq
+    depends_on:
+      rabbit1:
+        condition: service_healthy
+
+volumes:
+  rabbit1-data:
+  rabbit2-data:
+
+networks:
+  andesstay-mq:
+    name: andesstay-mq
