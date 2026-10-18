@@ -60,7 +60,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 33 | Excepcion inesperada tratada como no recuperable | Implementada | notify | `AckDecisionPolicyTest.excepcionInesperadaSeTrataComoNoRecuperable` |
 | 34 | Listener de DLQ con log de `x-death` y autoStartup configurable | Implementada | notify | `DeadLetterListener.java`; log `[DLQ] x-death reason=rejected` |
 | 35 | Simulacion de fallos (TRANSIENT, failTimes, FATAL) | Implementada | notify | `FailureSimulator.java`; README de notify |
-| 36 | Cluster RabbitMQ de 2 nodos (classic_config, misma cookie) | Implementada | infra | `mq/compose.yml`; `rabbitmqctl cluster_status` muestra 2 running nodes; captura Management UI > Overview > Nodes |
+| 36 | Cluster RabbitMQ de 2 nodos (classic_config, misma cookie) | Implementada | infra | `mq/compose.yml` (commit `f5d601c`); `rabbitmqctl cluster_status` muestra 2 running nodes; captura Management UI > Overview > Nodes |
 | 37 | Health check con estado de RabbitMQ | Implementada | notify, rabbitadmin | `GET :8083/actuator/health` -> `rabbit: UP` |
 
 ## 5. Administracion de RabbitMQ
@@ -81,7 +81,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
 | 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`d27eb3e`), notify (`f574ebd`), rabbitadmin (`fa43b16`) |
-| 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` |
+| 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` (commit `c126c05`) |
 | 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (27), notify (18), rabbitadmin (31), bff (1) | salida de `BUILD SUCCESS` |
 
 ## Resumen
