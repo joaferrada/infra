@@ -15,7 +15,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 3 | Mapeo del claim `roles` a `ROLE_*` | Implementada | bff, rabbitadmin | `JwtAuthConverter.java` (bff y rabbitadmin `e3e4e20`) |
 | 4 | Autorizacion por rol en BFF con los 4 roles (`Admin`, `Operador_Dominio`, `Cliente_Dominio`, `Auditor`) | Implementada | bff | `@PreAuthorize` en `ReservationsBffController`; `ReservationsBffControllerSecurityTest` (200/403 por rol) |
 | 5 | Reenvio del JWT BFF -> reservations | Implementada | bff | commits `f1b467d`, `5987de7` |
-| 6 | Autorizacion por rol dentro de reservations; el Cliente solo ve/actualiza sus reservas (ajena = 404) | Implementada | reservations | `@EnableMethodSecurity` + `JwtAuthConverter`; `ReservationAccessTest`, `ReservationServiceTest.listarConClienteSoloDevuelveLasSuyas` |
+| 6 | Autorizacion por rol dentro de reservations; el Cliente solo ve/actualiza sus reservas (`huespedEmail` = principal; ajena = 404) | Implementada | reservations | `@EnableMethodSecurity` + `JwtAuthConverter`; `ReservationAccessTest`, `ReservationServiceTest.listarConClienteSoloDevuelveLasSuyas` |
 | 7 | CORS en AWS API Gateway (HTTP API) para `localhost:4200` y `joaferrada.github.io`; el BFF no configura CORS | Implementada | infra (API Gateway), bff | README del BFF "CORS y seguridad en API Gateway"; captura API Gateway > CORS |
 | 8 | Seguridad de la API admin: JWT + rol Admin, apagable con `andesstay.security.enabled` | Implementada | rabbitadmin | `AdminApiSecurityTest` (401 / 403 / 200), commit `8101d01` |
 
@@ -28,6 +28,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 11 | Proxy CRUD en BFF | Implementada | bff | commits `2cbd307`, `0368ce7` |
 | 12 | Listado, creacion y eliminacion en el frontend | Implementada | frontend | `src/app/reservations.component.ts` |
 | 13 | Despliegue del frontend en GitHub Pages | Implementada | frontend | `.github/workflows/deploy.yml`, https://joaferrada.github.io/frontend-andesstay/ |
+| 52 | Datos del huesped (`huespedNombre`, `huespedEmail`) y `creadoPor` en la reserva: el Cliente los toma del token (claim `name` + principal), Admin/Operador los ingresan en el body con `@NotBlank`/`@Email` (400 si faltan); emails y vouchers usan `huespedEmail`/`huespedNombre` | Implementada | reservations | `dto/ReservationCreateRequest`, `security/HuespedResolver`; `HuespedResolverTest`, `ReservationControllerSecurityTest.adminSinEmailDelHuespedRecibe400ConMensajeClaro`, `EventEnvelopeSerializationTest` |
 
 ## 3. Estados de la reserva
 
@@ -82,7 +83,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 |---|---|---|---|---|
 | 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`6a6f7f5`), notify (`47c3252`), rabbitadmin (`bd68361`), bff |
 | 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` (commit `6fa872b`) |
-| 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (67), notify (18), rabbitadmin (31), bff (38) | salida de `BUILD SUCCESS` |
+| 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (77), notify (18), rabbitadmin (31), bff (38) | salida de `BUILD SUCCESS` |
 
 ## 7. Persistencia
 
@@ -96,15 +97,16 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 |---|---|---|---|---|
 | 50 | App roles en Entra ID: `Admin`, `Operador_Dominio`, `Cliente_Dominio`, `Auditor` (claim `roles`) | Implementada | infra (Entra ID), bff, reservations | captura Entra ID > App registrations > App roles; tabla de roles en README del BFF y de reservations |
 | 51 | JWT authorizer `entra-jwt` en AWS API Gateway (HTTP API): issuer `sts.windows.net/<tenant>/`, audience `api://<clientId>` | Implementada | infra (API Gateway) | README del BFF "CORS y seguridad en API Gateway"; captura API Gateway > Authorization; request sin token -> 401 desde API Gateway |
+| 53 | Principal del JWT para tokens Entra v1: primer claim no vacio entre `preferred_username`, `upn`, `unique_name`, `email`, `sub` | Implementada | reservations | `security/JwtAuthConverter`; `ReservationAccessTest.tokenV1SinPreferredUsernameUsaUpnYNoSub` |
 
 ## Resumen
 
 | Estado | Cantidad | % |
 |---|---|---|
-| Implementada | 50 | 98,0 % |
+| Implementada | 52 | 98,1 % |
 | Parcial | 0 | 0 % |
-| No implementada | 1 | 2,0 % |
-| **Total** | **51** | |
+| No implementada | 1 | 1,9 % |
+| **Total** | **53** | |
 
 ## Etapa siguiente (fuera de alcance de la EP3)
 
