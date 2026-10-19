@@ -13,10 +13,10 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 1 | Login con Microsoft Entra ID (MSAL, popup) | Implementada | frontend | commits `74bf612`, `b285e79`; `src/app/app.component.ts` |
 | 2 | Resource Server JWT (issuer Entra ID) | Implementada | bff, reservations | `bff/security/SecurityConfig.java`; reservations commit `61c6c3d` |
 | 3 | Mapeo del claim `roles` a `ROLE_*` | Implementada | bff, rabbitadmin | `JwtAuthConverter.java` (bff y rabbitadmin `e3e4e20`) |
-| 4 | Autorizacion por rol en BFF (`Admin`, `Operador_Dominio`, `Cliente_Dominio`) | Implementada | bff | `@PreAuthorize` en `ReservationsBffController` |
+| 4 | Autorizacion por rol en BFF con los 4 roles (`Admin`, `Operador_Dominio`, `Cliente_Dominio`, `Auditor`) | Implementada | bff | `@PreAuthorize` en `ReservationsBffController`; `ReservationsBffControllerSecurityTest` (200/403 por rol) |
 | 5 | Reenvio del JWT BFF -> reservations | Implementada | bff | commits `f1b467d`, `5987de7` |
 | 6 | Autorizacion por rol dentro de reservations; el Cliente solo ve/actualiza sus reservas (ajena = 404) | Implementada | reservations | `@EnableMethodSecurity` + `JwtAuthConverter`; `ReservationAccessTest`, `ReservationServiceTest.listarConClienteSoloDevuelveLasSuyas` |
-| 7 | CORS para localhost y GitHub Pages | Implementada | bff | commit `a7b0ac8` |
+| 7 | CORS en AWS API Gateway (HTTP API) para `localhost:4200` y `joaferrada.github.io`; el BFF no configura CORS | Implementada | infra (API Gateway), bff | README del BFF "CORS y seguridad en API Gateway"; captura API Gateway > CORS |
 | 8 | Seguridad de la API admin: JWT + rol Admin, apagable con `andesstay.security.enabled` | Implementada | rabbitadmin | `AdminApiSecurityTest` (401 / 403 / 200), commit `8101d01` |
 
 ## 2. Reservas
@@ -80,9 +80,9 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
-| 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`6a6f7f5`), notify (`47c3252`), rabbitadmin (`bd68361`) |
+| 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`6a6f7f5`), notify (`47c3252`), rabbitadmin (`bd68361`), bff |
 | 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` (commit `6fa872b`) |
-| 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (36), notify (18), rabbitadmin (31), bff (1) | salida de `BUILD SUCCESS` |
+| 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (67), notify (18), rabbitadmin (31), bff (38) | salida de `BUILD SUCCESS` |
 
 ## 7. Persistencia
 
@@ -90,14 +90,21 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 |---|---|---|---|---|
 | 49 | Persistencia de reservas en Oracle Autonomous Database (OCI Always Free) con wallet mTLS; credenciales por variables de entorno (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`) | Implementada | reservations | `application.yaml`, `ojdbc11-production` en `pom.xml`, README "Base de datos Oracle en OCI"; captura de la tabla `RESERVATIONS` en Database Actions (`SELECT * FROM RESERVATIONS`) |
 
+## 8. Identidad y API Gateway
+
+| # | Funcionalidad | Estado | Responsable | Evidencia verificable |
+|---|---|---|---|---|
+| 50 | App roles en Entra ID: `Admin`, `Operador_Dominio`, `Cliente_Dominio`, `Auditor` (claim `roles`) | Implementada | infra (Entra ID), bff, reservations | captura Entra ID > App registrations > App roles; tabla de roles en README del BFF y de reservations |
+| 51 | JWT authorizer `entra-jwt` en AWS API Gateway (HTTP API): issuer `sts.windows.net/<tenant>/`, audience `api://<clientId>` | Implementada | infra (API Gateway) | README del BFF "CORS y seguridad en API Gateway"; captura API Gateway > Authorization; request sin token -> 401 desde API Gateway |
+
 ## Resumen
 
 | Estado | Cantidad | % |
 |---|---|---|
-| Implementada | 48 | 98,0 % |
+| Implementada | 50 | 98,0 % |
 | Parcial | 0 | 0 % |
 | No implementada | 1 | 2,0 % |
-| **Total** | **49** | |
+| **Total** | **51** | |
 
 ## Etapa siguiente (fuera de alcance de la EP3)
 
