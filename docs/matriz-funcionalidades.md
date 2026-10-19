@@ -1,10 +1,10 @@
-# Matriz de funcionalidades AndesStay (hasta EP3)
+# Matriz de funcionalidades AndesStay
 
-Alcance: autenticacion, reservas, estados, mensajeria y administracion de RabbitMQ. Kafka, reportes y auditoria quedan para la etapa siguiente (ver final).
+Alcance: autenticacion, reservas, estados, mensajeria y administracion de RabbitMQ, catalogo de unidades, auditoria y reporteria. Kafka/streaming queda para la etapa siguiente (ver final). Diagrama de servicios y puertos: [arquitectura.md](arquitectura.md).
 
 **Estados:** Implementada = codigo + evidencia verificable · Parcial = funciona con una limitacion indicada · No implementada.
 
-Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bff` = ms-andesstay-bff (rama `feature/rabbitmq`), `frontend` = frontend-andesstay (rama `feature/rabbitmq`), `notify` = ms-andesstay-notify, `rabbitadmin` = ms-andesstay-rabbitadmin, `infra` = infra (este repo).
+Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bff` = ms-andesstay-bff (rama `feature/rabbitmq`), `frontend` = frontend-andesstay (rama `feature/rabbitmq`), `notify` = ms-andesstay-notify, `rabbitadmin` = ms-andesstay-rabbitadmin, `catalog` = ms-andesstay-catalog, `audit` = ms-andesstay-audit, `report` = ms-andesstay-report (estos tres en rama `main`), `infra` = infra (este repo).
 
 ## 1. Autenticacion y seguridad
 
@@ -81,9 +81,10 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
-| 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`6a6f7f5`), notify (`47c3252`), rabbitadmin (`bd68361`), bff |
+| 46 | README por microservicio (como correr, endpoints, roles, variables, fallos, curl) | Implementada | todos | `README.md` de reservations (`6a6f7f5`, `b9ab9c7`), notify (`47c3252`), rabbitadmin (`bd68361`), bff (`5f0c960`), catalog (`d09394a`), audit (`f0d054f`), report (`8ccf17d`) |
 | 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` (commit `6fa872b`) |
-| 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (77), notify (18), rabbitadmin (31), bff (38) | salida de `BUILD SUCCESS` |
+| 48 | Tests sin broker, sin OCI y sin servicios externos que pasan con `mvnw.cmd clean package` | Implementada | reservations (99), notify (18), rabbitadmin (31), bff (103), catalog (59), audit (28), report (31) | salida de `BUILD SUCCESS` |
+| 64 | Diagrama de servicios y puertos (frontend, API Gateway, bff, reservations, notify, rabbitadmin, catalog, audit, report, RabbitMQ, Oracle ADB) | Implementada | infra | `docs/arquitectura.md` (commit `ed8adb5`) |
 
 ## 7. Persistencia
 
@@ -99,21 +100,36 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 51 | JWT authorizer `entra-jwt` en AWS API Gateway (HTTP API): issuer `sts.windows.net/<tenant>/`, audience `api://<clientId>` | Implementada | infra (API Gateway) | README del BFF "CORS y seguridad en API Gateway"; captura API Gateway > Authorization; request sin token -> 401 desde API Gateway |
 | 53 | Principal del JWT para tokens Entra v1: primer claim no vacio entre `preferred_username`, `upn`, `unique_name`, `email`, `sub` | Implementada | reservations | `security/JwtAuthConverter`; `ReservationAccessTest.tokenV1SinPreferredUsernameUsaUpnYNoSub` |
 
+## 9. Catalogo, auditoria y reporteria
+
+Integracion **REST sincronica** con el JWT del usuario propagado (sin eventos ni exchanges nuevos de RabbitMQ).
+
+| # | Funcionalidad | Estado | Responsable | Evidencia verificable |
+|---|---|---|---|---|
+| 54 | Catalogo de unidades (`HABITACION`, `CABANA`, `LODGE`, `DOMO`): CRUD `/api/catalog/units` con filtros `tipo`, `hostal`, `soloDisponibles` y baja logica (`activo=false`) | Implementada | catalog | commit `66a41e8`; `UnitServiceTest.eliminarEsBajaLogica`, `UnitRepositoryTest` |
+| 55 | Validaciones de la unidad (`capacidad`, `tarifaNoche`, `cuposTotales` > 0; `cuposDisponibles` entre 0 y el total) con errores JSON 400/404/409/503 | Implementada | catalog | `dto/UnitRequest`, `exception/ApiExceptionHandler`; `UnitRequestValidationTest`, `UnitControllerSecurityTest.bodyInvalidoResponde400ConDetalle` |
+| 56 | Cupos: `POST /{id}/reserve` (409 sin cupos o inactiva) y `/{id}/release` (sin superar el total), con `@Version` | Implementada | catalog | `entity/Unit`; `UnitTest`, `UnitServiceTest.reservarSinCuposLanza409YNoGuarda`, `UnitServiceTest.liberarNoSuperaElTotal` |
+| 57 | Roles del catalogo: GET los 4 roles; POST/PUT/DELETE solo Admin; reserve/release Admin y Operador | Implementada | catalog | commit `51d1ac6`; `UnitControllerSecurityTest` (41 casos) |
+| 58 | Carga de 6 unidades de ejemplo solo si la tabla esta vacia | Implementada | catalog | commit `949d297`; `MsAndesstayCatalogApplicationTests.contextLoadsYCargaLasUnidadesDeEjemploUnaSolaVez` |
+| 59 | Auditoria: `POST /api/audit/events` (201; actor = usuario del token), `GET /api/audit/events` con filtros y paginacion (`occurredAt` desc), `GET /api/audit/reservations/{id}/timeline` cronologico; sin PUT ni DELETE | Implementada | audit | commit `b8abc65`; `AuditServiceTest` (6 casos), `AuditControllerSecurityTest` (21 casos, GET solo Admin/Auditor) |
+| 60 | Reporteria sin BD: `GET /api/report/kpis?range=last24h\|last7d\|last30d` (por hora, por estado, ocupacion activa, tiempo de ciclo, ingresos confirmados) y `GET /api/report/top-units`; solo Admin | Implementada | report | commits `3ba812c`, `1281479`; `KpiCalculatorTest`, `ReportControllerSecurityTest` (range invalido -> 400) |
+| 61 | Tolerancia a fallas en report: reservations caido -> 503; audit caido -> `tiempoCicloPromedioHoras` null con aviso | Implementada | report | `ReportServiceTest.reservationsCaidoLanza503`, `ReportServiceTest.auditCaidoDejaSoloElTiempoDeCicloEnNullConAviso` |
+| 62 | Reservations -> catalog: `unidadId` opcional; confirmar descuenta cupo (409 sin cupos, 503 catalog caido), cancelar/checkout lo devuelve; detras de la interfaz `CatalogClient` | Implementada | reservations | commits `1f271a8`, `c8b220d`, `3daa34b`; `ReservationServiceTest.confirmarSinCuposLanza409YNoGuardaNiPublica`, `RestClientsTest.catalogSinCuposSeTraduceA409ConSuMensaje` |
+| 63 | Reservations -> audit: `RESERVA_CREADA`, `CAMBIO_ESTADO` (anterior, nuevo, actor) y `RESERVA_ELIMINADA`; si audit cae, `log.warn` y sigue; detras de la interfaz `AuditClient` | Implementada | reservations | commit `3daa34b`; `ReservationServiceTest.transicionValidaGuardaPublicaYAudita`, `RestClientsTest.auditCaidoNoRompeNada` |
+| 65 | BFF: ruteo `/api/catalog/**`, `/api/audit/**` (solo GET) y `/api/report/**` con los roles de cada microservicio; todas las URLs internas en `andesstay.services.*.url` | Implementada | bff | commits `809bf3a`, `18bb96f`, `b4ca64a`; `CatalogAuditReportBffSecurityTest` (61 casos), `ServiceUrlsTest` |
+| 66 | Schemas Oracle propios para catalog (`ANDESSTAY_CATALOG`) y audit (`ANDESSTAY_AUDIT`) en la misma ADB, secretos por variables de entorno | Implementada | catalog, audit | `application.yaml` y `.env.example` de cada uno; README "Base de datos" |
+
 ## Resumen
 
 | Estado | Cantidad | % |
 |---|---|---|
-| Implementada | 52 | 98,1 % |
+| Implementada | 65 | 98,5 % |
 | Parcial | 0 | 0 % |
-| No implementada | 1 | 1,9 % |
-| **Total** | **53** | |
+| No implementada | 1 | 1,5 % |
+| **Total** | **66** | |
 
-## Etapa siguiente (fuera de alcance de la EP3)
+## Etapa siguiente
 
 | Funcionalidad | Estado |
 |---|---|
 | Streaming de eventos con Kafka | No implementada (etapa siguiente) |
-| Microservicio de reportes (report) | No implementada (etapa siguiente) |
-| Microservicio de auditoria (audit) | No implementada (etapa siguiente) |
-| Quorum queues (requiere 3 nodos) | No implementada (mejora) |
-| Idempotencia persistente (Redis o BD) | No implementada (mejora) |
