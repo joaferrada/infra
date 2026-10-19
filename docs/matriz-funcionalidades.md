@@ -23,7 +23,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 
 | # | Funcionalidad | Estado | Responsable | Evidencia verificable |
 |---|---|---|---|---|
-| 9 | CRUD `/api/reservations` (JPA + H2) | Implementada | reservations | commits `306bbc2`, `952a780` |
+| 9 | CRUD `/api/reservations` (JPA; Oracle ADB, H2 solo en tests) | Implementada | reservations | commits `306bbc2`, `952a780` |
 | 10 | Logica de negocio en `ReservationService` | Implementada | reservations | commit `690dbb6` |
 | 11 | Proxy CRUD en BFF | Implementada | bff | commits `2cbd307`, `0368ce7` |
 | 12 | Listado, creacion y eliminacion en el frontend | Implementada | frontend | `src/app/reservations.component.ts` |
@@ -84,14 +84,20 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` (commit `6fa872b`) |
 | 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (27), notify (18), rabbitadmin (31), bff (1) | salida de `BUILD SUCCESS` |
 
+## 7. Persistencia
+
+| # | Funcionalidad | Estado | Responsable | Evidencia verificable |
+|---|---|---|---|---|
+| 49 | Persistencia de reservas en Oracle Autonomous Database (OCI Always Free) con wallet mTLS; credenciales por variables de entorno (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`) | Implementada | reservations | `application.yaml`, `ojdbc11-production` en `pom.xml`, README "Base de datos Oracle en OCI"; captura de la tabla `RESERVATIONS` en Database Actions (`SELECT * FROM RESERVATIONS`) |
+
 ## Resumen
 
 | Estado | Cantidad | % |
 |---|---|---|
-| Implementada | 46 | 95,8 % |
-| Parcial | 1 | 2,1 % |
-| No implementada | 1 | 2,1 % |
-| **Total** | **48** | |
+| Implementada | 47 | 95,9 % |
+| Parcial | 1 | 2,0 % |
+| No implementada | 1 | 2,0 % |
+| **Total** | **49** | |
 
 ## Etapa siguiente (fuera de alcance de la EP3)
 
