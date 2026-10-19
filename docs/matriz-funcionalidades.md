@@ -61,7 +61,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 33 | Excepcion inesperada tratada como no recuperable | Implementada | notify | `AckDecisionPolicyTest.excepcionInesperadaSeTrataComoNoRecuperable` |
 | 34 | Listener de DLQ con log de `x-death` y autoStartup configurable | Implementada | notify | `DeadLetterListener.java`; log `[DLQ] x-death reason=rejected` |
 | 35 | Simulacion de fallos (TRANSIENT, failTimes, FATAL) | Implementada | notify | `FailureSimulator.java`; README de notify |
-| 36 | Cluster RabbitMQ de 2 nodos (classic_config, misma cookie) | Implementada | infra | `mq/compose.yml` (commit `19cb601`); `rabbitmqctl cluster_status` muestra 2 running nodes; captura Management UI > Overview > Nodes |
+| 36 | Cluster RabbitMQ de 2 nodos (classic_config, misma cookie) | Implementada | infra | `compose.yml` (antes `mq/compose.yml`, commit `19cb601`); `rabbitmqctl cluster_status` muestra 2 running nodes; captura Management UI > Overview > Nodes |
 | 37 | Health check con estado de RabbitMQ | Implementada | notify, rabbitadmin | `GET :8083/actuator/health` -> `rabbit: UP` |
 
 ## 5. Administracion de RabbitMQ
@@ -119,14 +119,22 @@ Integracion **REST sincronica** con el JWT del usuario propagado (sin eventos ni
 | 65 | BFF: ruteo `/api/catalog/**`, `/api/audit/**` (solo GET) y `/api/report/**` con los roles de cada microservicio; todas las URLs internas en `andesstay.services.*.url` | Implementada | bff | commits `809bf3a`, `18bb96f`, `b4ca64a`; `CatalogAuditReportBffSecurityTest` (61 casos), `ServiceUrlsTest` |
 | 66 | Schemas Oracle propios para catalog (`ANDESSTAY_CATALOG`) y audit (`ANDESSTAY_AUDIT`) en la misma ADB, secretos por variables de entorno | Implementada | catalog, audit | `application.yaml` y `.env.example` de cada uno; README "Base de datos" |
 
+## 10. Contenedores
+
+| # | Funcionalidad | Estado | Responsable | Evidencia verificable |
+|---|---|---|---|---|
+| 67 | `Dockerfile` multi-stage por microservicio (build `maven:3.9-eclipse-temurin-17` con `dependency:go-offline` cacheado, runtime `eclipse-temurin:17-jre` con usuario no root, `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75`) y `.dockerignore` | Implementada | bff, reservations, notify, rabbitadmin, catalog, audit, report | commits bff `cb8db4f`, reservations `5f59df2`, notify `2e9aa8b`, rabbitadmin `20f0d33`, catalog `e96378f`, audit `0e5dd1c`, report `88814cf`; seccion "Docker" de cada README |
+| 68 | Compose unico `infra/compose.yml` (proyecto `andesstay`): cluster RabbitMQ de 2 nodos + 7 microservicios en la red `andesstay-net`, URLs internas por nombre de servicio, wallet de Oracle montado en `/wallet:ro`, `depends_on` con `service_healthy`, `restart: unless-stopped` y `mem_limit: 512m` | Implementada | infra | commits `d368558`, `8f47240`; `docker compose -f infra/compose.yml config`; `docker compose ps` con todos `(healthy)`; README de infra |
+| 69 | `GET /actuator/health` sin token en los 7 microservicios para los healthchecks (solo se expone `health`) | Implementada | bff, reservations, catalog, audit, report (notify y rabbitadmin ya lo tenian) | commits bff `aaacea2`, reservations `61b8cc8`, catalog `c2bda82`, audit `ab96fd0`, report `b12e09d` |
+
 ## Resumen
 
 | Estado | Cantidad | % |
 |---|---|---|
-| Implementada | 65 | 98,5 % |
+| Implementada | 68 | 98,6 % |
 | Parcial | 0 | 0 % |
-| No implementada | 1 | 1,5 % |
-| **Total** | **66** | |
+| No implementada | 1 | 1,4 % |
+| **Total** | **69** | |
 
 ## Etapa siguiente
 
