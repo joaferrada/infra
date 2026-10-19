@@ -130,6 +130,6 @@ flowchart TD
 
 ## Cluster
 
-`infra/mq/compose.yml` levanta `rabbit1` (5672/15672) y `rabbit2` (5673/15673) con la misma Erlang cookie y peer discovery `classic_config`. Los microservicios usan `spring.rabbitmq.addresses` (por ejemplo `localhost:5672,localhost:5673`): si un nodo cae, el cliente se reconecta al otro.
+`infra/compose.yml` levanta `rabbit1` (5672/15672) y `rabbit2` (5673/15673) con la misma Erlang cookie y peer discovery `classic_config`. Los microservicios usan `spring.rabbitmq.addresses` (por ejemplo `localhost:5672,localhost:5673`): si un nodo cae, el cliente se reconecta al otro.
 
 **Limitacion conocida:** las colas son *classic*, asi que cada una vive en un nodo (exchanges y bindings si se replican). Para que una cola sobreviva la caida de su nodo habria que usar *quorum queues*, que requieren al menos 3 nodos para tolerar una falla. Queda como mejora de la etapa siguiente.

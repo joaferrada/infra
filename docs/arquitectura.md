@@ -57,10 +57,10 @@ flowchart LR
 | ms-andesstay-catalog | 8085 | Oracle `ANDESSTAY_CATALOG` | - | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` |
 | ms-andesstay-audit | 8086 | Oracle `ANDESSTAY_AUDIT` | - | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` |
 | ms-andesstay-report | 8087 | - (KPIs al momento) | reservations, audit | `RESERVATIONS_URL`, `AUDIT_URL` |
-| RabbitMQ | 5672, 5673 (AMQP), 15672 (UI) | volumenes Docker | - | ver `mq/compose.yml` |
+| RabbitMQ | 5672, 5673 (AMQP), 15672 (UI) | volumenes Docker | - | ver `compose.yml` |
 | Oracle Autonomous DB | 1522 (mTLS) | OCI Always Free | - | wallet en `C:/oracle/wallet_andesstay` |
 
-En Docker, las URLs usan el nombre del contenedor, por ejemplo `CATALOG_URL=http://ms-andesstay-catalog:8085`.
+En Docker, las URLs usan el nombre de servicio de infra/compose.yml, por ejemplo `CATALOG_URL=http://catalog:8085`.
 
 ## Flujos principales
 

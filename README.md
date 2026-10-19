@@ -3,39 +3,73 @@
 Infraestructura local y documentacion transversal de AndesStay.
 
 ```
-mq/compose.yml       cluster RabbitMQ 4 de 2 nodos (rabbit1 + rabbit2)
-mq/rabbitmq.conf     peer discovery classic_config
-mq/.env.example      credenciales y Erlang cookie (copiar a .env, que no se versiona)
+compose.yml               todo el backend: cluster RabbitMQ 4 de 2 nodos + 7 microservicios
+rabbitmq/rabbitmq.conf    peer discovery classic_config
+.env.example              variables del compose (copiar a .env, que no se versiona)
+docs/arquitectura.md              servicios, puertos y flujos
 docs/arquitectura-mensajeria.md   topologia, contrato de mensajes, ACK/NACK/DLQ
-docs/matriz-funcionalidades.md    matriz de funcionalidades hasta la EP3
+docs/matriz-funcionalidades.md    matriz de funcionalidades
 ```
 
-## Levantar RabbitMQ
+## Levantar todo
+
+Requisitos: Docker Desktop y el wallet de Oracle ADB descomprimido (por defecto en `C:/oracle/wallet_andesstay`). Los repos `ms-andesstay-*` deben estar como carpetas hermanas de `infra`, porque cada imagen se construye desde `../ms-andesstay-<servicio>`.
 
 ```powershell
-cd infra\mq
-copy .env.example .env      # opcional: cambiar usuario, clave y cookie
-docker compose up -d
-docker exec andesstay-rabbit1 rabbitmqctl cluster_status   # Running Nodes: rabbit@rabbit1, rabbit@rabbit2
+cd infra
+copy .env.example .env      # completar RESERVATIONS_DB_PASSWORD, CATALOG_DB_PASSWORD y AUDIT_DB_PASSWORD
+docker compose up -d --build
+docker compose ps           # todos deben quedar (healthy)
 ```
 
-| Nodo | AMQP | Management UI |
+Orden de arranque (por `depends_on` + healthchecks de `/actuator/health`): rabbit1 -> rabbit2 -> catalog, audit, notify, rabbitadmin -> reservations -> report, bff.
+
+| Variable | Default | Uso |
 |---|---|---|
-| rabbit1 | `localhost:5672` | http://localhost:15672 |
-| rabbit2 | `localhost:5673` | http://localhost:15673 |
+| `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | `guest` / `guest` | usuario del broker (nodos y microservicios) |
+| `RABBITMQ_ERLANG_COOKIE` | `andesstay-local-dev-cookie` | cookie compartida por los 2 nodos |
+| `WALLET_DIR` | `C:/oracle/wallet_andesstay` | wallet montado en `/wallet` (solo lectura) |
+| `RESERVATIONS_DB_PASSWORD` | - | usuario `ANDESSTAY` |
+| `CATALOG_DB_PASSWORD` | - | usuario `ANDESSTAY_CATALOG` |
+| `AUDIT_DB_PASSWORD` | - | usuario `ANDESSTAY_AUDIT` |
+| `RABBITADMIN_SECURITY_ENABLED` | `true` | `false` deja `/api/admin/**` sin token (solo pruebas locales) |
+| `JAVA_TOOL_OPTIONS` | `-XX:MaxRAMPercentage=75` | opciones de la JVM (cada contenedor tiene `mem_limit: 512m`) |
 
-Usuario por defecto `guest` / `guest` (solo local). Los microservicios se conectan a ambos nodos con:
+## Servicios
+
+| Servicio | Contenedor | Puerto host | URL |
+|---|---|---|---|
+| bff | `andesstay-bff` | 8080 | http://localhost:8080 |
+| reservations | `andesstay-reservations` | 8081 | http://localhost:8081 |
+| notify | `andesstay-notify` | 8083 | http://localhost:8083 |
+| rabbitadmin | `andesstay-rabbitadmin` | 8084 | http://localhost:8084 |
+| catalog | `andesstay-catalog` | 8085 | http://localhost:8085 |
+| audit | `andesstay-audit` | 8086 | http://localhost:8086 |
+| report | `andesstay-report` | 8087 | http://localhost:8087 |
+| rabbit1 | `andesstay-rabbit1` | 5672 / 15672 | AMQP `localhost:5672`, Management UI http://localhost:15672 |
+| rabbit2 | `andesstay-rabbit2` | 5673 / 15673 | AMQP `localhost:5673`, Management UI http://localhost:15673 |
+
+Salud de cada microservicio: `GET http://localhost:<puerto>/actuator/health` (sin token).
+
+Dentro de la red `andesstay-net` los servicios se llaman por nombre: RabbitMQ en `rabbit1:5672,rabbit2:5672`, y `http://reservations:8081`, `http://catalog:8085`, `http://audit:8086`, `http://report:8087`.
+
+## Logs y verificacion
 
 ```powershell
-$env:RABBITMQ_ADDRESSES="localhost:5672,localhost:5673"
+docker compose logs -f notify                              # logs de un servicio
+docker exec andesstay-rabbit1 rabbitmqctl cluster_status   # Running Nodes: rabbit@rabbit1, rabbit@rabbit2
+curl.exe -u guest:guest http://localhost:15672/api/queues  # las 6 colas q.cmd.* y sus DLQ
 ```
 
-Para bajar todo: `docker compose down` (agregar `-v` para borrar los volumenes de datos).
+Reconstruir un solo servicio despues de un cambio: `docker compose up -d --build reservations`.
 
-## Orden de arranque para la demo
+## Bajar todo
 
-1. `infra/mq`: `docker compose up -d`
-2. `ms-andesstay-notify` (8083): declara la topologia y empieza a consumir
-3. `ms-andesstay-reservations` (8081) y `ms-andesstay-bff` (8080)
-4. `ms-andesstay-rabbitadmin` (8084), con `ANDESSTAY_SECURITY_ENABLED=false` para probar sin token
-5. `frontend-andesstay`: usa la URL de `src/enviroments/enviroment.ts` (API Gateway de AWS). Para la demo local de mensajeria basta con rabbitadmin + notify
+```powershell
+docker compose down        # detiene y elimina los contenedores
+docker compose down -v     # ademas borra los volumenes de datos de RabbitMQ
+```
+
+## Demo local de mensajeria
+
+Con todo arriba, notify y reservations declaran la topologia y notify empieza a consumir. Para probar sin token, levantar rabbitadmin con `RABBITADMIN_SECURITY_ENABLED=false` en `.env` y usar los ejemplos del README de `ms-andesstay-rabbitadmin`. El frontend (`frontend-andesstay`) usa la URL del API Gateway de AWS de `src/enviroments/enviroment.ts`.
