@@ -1,0 +1,221 @@
+# AndesStay: todo el backend con un comando
+#
+#   cd infra
+#   copy .env.example .env      # completar las claves de Oracle
+#   docker compose up -d --build
+#
+# Cluster RabbitMQ de 2 nodos + 7 microservicios en la red andesstay-net.
+# Dentro de la red los servicios se llaman por nombre (rabbit1, reservations, catalog, ...).
+# Variables en infra/.env (ver .env.example; .env no se versiona).
+
+name: andesstay
+
+x-rabbit-common: &rabbit-common
+  image: rabbitmq:4-management
+  restart: unless-stopped
+  environment:
+    RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+    RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    # Misma cookie en ambos nodos: requisito para que formen cluster
+    RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -setcookie ${RABBITMQ_ERLANG_COOKIE:-andesstay-local-dev-cookie}
+    RABBITMQ_CTL_ERL_ARGS: -setcookie ${RABBITMQ_ERLANG_COOKIE:-andesstay-local-dev-cookie}
+  healthcheck:
+    test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+    interval: 10s
+    timeout: 10s
+    retries: 10
+  networks:
+    - andesstay-net
+
+# Comun a los 7 microservicios
+x-service-common: &service-common
+  restart: unless-stopped
+  mem_limit: 512m
+  networks:
+    - andesstay-net
+
+x-healthcheck: &healthcheck
+  interval: 15s
+  timeout: 5s
+  retries: 10
+  start_period: 60s
+
+x-rabbit-env: &rabbit-env
+  RABBITMQ_ADDRESSES: rabbit1:5672,rabbit2:5672
+  RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+  RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
+
+x-depends-rabbit: &depends-rabbit
+  rabbit1:
+    condition: service_healthy
+  rabbit2:
+    condition: service_healthy
+
+# Oracle ADB: wallet de solo lectura en /wallet
+x-wallet: &wallet
+  - ${WALLET_DIR:-C:/oracle/wallet_andesstay}:/wallet:ro
+
+services:
+  rabbit1:
+    <<: *rabbit-common
+    container_name: andesstay-rabbit1
+    hostname: rabbit1
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - rabbit1-data:/var/lib/rabbitmq
+
+  rabbit2:
+    <<: *rabbit-common
+    container_name: andesstay-rabbit2
+    hostname: rabbit2
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - rabbit2-data:/var/lib/rabbitmq
+    depends_on:
+      rabbit1:
+        condition: service_healthy
+
+  catalog:
+    <<: *service-common
+    build: ../ms-andesstay-catalog
+    container_name: andesstay-catalog
+    ports:
+      - "8085:8085"
+    volumes: *wallet
+    environment:
+      DB_URL: jdbc:oracle:thin:@andesstaydb_tp?TNS_ADMIN=/wallet
+      DB_USERNAME: ANDESSTAY_CATALOG
+      DB_PASSWORD: ${CATALOG_DB_PASSWORD}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
+
+  audit:
+    <<: *service-common
+    build: ../ms-andesstay-audit
+    container_name: andesstay-audit
+    ports:
+      - "8086:8086"
+    volumes: *wallet
+    environment:
+      DB_URL: jdbc:oracle:thin:@andesstaydb_tp?TNS_ADMIN=/wallet
+      DB_USERNAME: ANDESSTAY_AUDIT
+      DB_PASSWORD: ${AUDIT_DB_PASSWORD}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fsS", "http://localhost:8086/actuator/health"]
+
+  reservations:
+    <<: *service-common
+    build: ../ms-andesstay-reservations
+    container_name: andesstay-reservations
+    ports:
+      - "8081:8081"
+    volumes: *wallet
+    environment:
+      <<: *rabbit-env
+      DB_URL: jdbc:oracle:thin:@andesstaydb_tp?TNS_ADMIN=/wallet
+      DB_USERNAME: ANDESSTAY
+      DB_PASSWORD: ${RESERVATIONS_DB_PASSWORD}
+      CATALOG_URL: http://catalog:8085
+      AUDIT_URL: http://audit:8086
+      ANDESSTAY_DLQ_RETENTION: ${ANDESSTAY_DLQ_RETENTION:-7d}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75}
+    depends_on:
+      <<: *depends-rabbit
+      catalog:
+        condition: service_healthy
+      audit:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
+
+  notify:
+    <<: *service-common
+    build: ../ms-andesstay-notify
+    container_name: andesstay-notify
+    ports:
+      - "8083:8083"
+    environment:
+      <<: *rabbit-env
+      ANDESSTAY_DLQ_RETENTION: ${ANDESSTAY_DLQ_RETENTION:-7d}
+      NOTIFY_PREFETCH: ${NOTIFY_PREFETCH:-5}
+      NOTIFY_MAX_ATTEMPTS: ${NOTIFY_MAX_ATTEMPTS:-3}
+      NOTIFY_RETRY_BACKOFF: ${NOTIFY_RETRY_BACKOFF:-1s}
+      NOTIFY_SIMULATION_ENABLED: ${NOTIFY_SIMULATION_ENABLED:-true}
+      NOTIFY_DLQ_LISTENER: ${NOTIFY_DLQ_LISTENER:-false}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75}
+    depends_on: *depends-rabbit
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
+
+  rabbitadmin:
+    <<: *service-common
+    build: ../ms-andesstay-rabbitadmin
+    container_name: andesstay-rabbitadmin
+    ports:
+      - "8084:8084"
+    environment:
+      <<: *rabbit-env
+      RABBITMQ_MANAGEMENT_URL: http://rabbit1:15672
+      ANDESSTAY_SECURITY_ENABLED: ${RABBITADMIN_SECURITY_ENABLED:-true}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75}
+    depends_on: *depends-rabbit
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fsS", "http://localhost:8084/actuator/health"]
+
+  report:
+    <<: *service-common
+    build: ../ms-andesstay-report
+    container_name: andesstay-report
+    ports:
+      - "8087:8087"
+    environment:
+      RESERVATIONS_URL: http://reservations:8081
+      AUDIT_URL: http://audit:8086
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75}
+    depends_on:
+      reservations:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fsS", "http://localhost:8087/actuator/health"]
+
+  bff:
+    <<: *service-common
+    build: ../ms-andesstay-bff
+    container_name: andesstay-bff
+    ports:
+      - "8080:8080"
+    environment:
+      RESERVATIONS_URL: http://reservations:8081
+      CATALOG_URL: http://catalog:8085
+      AUDIT_URL: http://audit:8086
+      REPORT_URL: http://report:8087
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75}
+    depends_on:
+      reservations:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+
+volumes:
+  rabbit1-data:
+  rabbit2-data:
+
+networks:
+  andesstay-net:
+    name: andesstay-net
