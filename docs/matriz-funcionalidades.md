@@ -15,7 +15,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 | 3 | Mapeo del claim `roles` a `ROLE_*` | Implementada | bff, rabbitadmin | `JwtAuthConverter.java` (bff y rabbitadmin `e3e4e20`) |
 | 4 | Autorizacion por rol en BFF (`Admin`, `Operador_Dominio`, `Cliente_Dominio`) | Implementada | bff | `@PreAuthorize` en `ReservationsBffController` |
 | 5 | Reenvio del JWT BFF -> reservations | Implementada | bff | commits `f1b467d`, `5987de7` |
-| 6 | Autorizacion por rol dentro de reservations | Parcial | reservations | `@PreAuthorize` declarado, pero `SecurityConfig` no tiene `@EnableMethodSecurity`: el control efectivo de roles se hace en el BFF |
+| 6 | Autorizacion por rol dentro de reservations; el Cliente solo ve/actualiza sus reservas (ajena = 404) | Implementada | reservations | `@EnableMethodSecurity` + `JwtAuthConverter`; `ReservationAccessTest`, `ReservationServiceTest.listarConClienteSoloDevuelveLasSuyas` |
 | 7 | CORS para localhost y GitHub Pages | Implementada | bff | commit `a7b0ac8` |
 | 8 | Seguridad de la API admin: JWT + rol Admin, apagable con `andesstay.security.enabled` | Implementada | rabbitadmin | `AdminApiSecurityTest` (401 / 403 / 200), commit `8101d01` |
 
@@ -82,7 +82,7 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 |---|---|---|---|---|
 | 46 | README por microservicio (como correr, endpoints, fallos, curl) | Implementada | todos | `README.md` de reservations (`6a6f7f5`), notify (`47c3252`), rabbitadmin (`bd68361`) |
 | 47 | Diagrama de topologia y estrategia ACK/NACK/DLQ | Implementada | infra | `docs/arquitectura-mensajeria.md` (commit `6fa872b`) |
-| 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (27), notify (18), rabbitadmin (31), bff (1) | salida de `BUILD SUCCESS` |
+| 48 | Tests sin broker que pasan con `mvnw.cmd clean package` | Implementada | reservations (36), notify (18), rabbitadmin (31), bff (1) | salida de `BUILD SUCCESS` |
 
 ## 7. Persistencia
 
@@ -94,8 +94,8 @@ Repos: `reservations` = ms-andesstay-reservations (rama `feature/rabbitmq`), `bf
 
 | Estado | Cantidad | % |
 |---|---|---|
-| Implementada | 47 | 95,9 % |
-| Parcial | 1 | 2,0 % |
+| Implementada | 48 | 98,0 % |
+| Parcial | 0 | 0 % |
 | No implementada | 1 | 2,0 % |
 | **Total** | **49** | |
 
